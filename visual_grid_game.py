@@ -1,7 +1,7 @@
 # visual_grid_game.py
 import random
 import tkinter as tk
-from agent import SimpleReflexAgent
+from agent import SearchAgent
 
 class VisualGridHuntGame:
     """A flexible Pacman-style grid environment with support for configurable opponents and larger scales."""
@@ -83,8 +83,13 @@ class VisualGridHuntGame:
         )
 
         return {
-            "wall_ahead": wall,
-            "food_here": (x, y) in self.food_positions
+           "wall_ahead": wall,
+           "food_here": (x, y) in self.food_positions,
+           "grid_size": (self.width, self.height),
+           "walls": list(self.walls),
+           "all_food": list(self.food_positions),
+           "agent_pos": tuple(self.agent_pos)
+            
         }
 
     def execute_action(self, action: str):
@@ -173,7 +178,8 @@ class GridGameGUI:
                              fg="white")
         self.btn.pack(pady=5)
 
-        self.agent = SimpleReflexAgent()
+        self.agent = SearchAgent()
+        self.agent.active_algo = "BFS"
         
         self.draw_grid()
         
