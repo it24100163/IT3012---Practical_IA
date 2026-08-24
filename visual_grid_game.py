@@ -1,7 +1,7 @@
 # visual_grid_game.py
 import random
 import tkinter as tk
-
+from agent import SearchAgent
 
 class VisualGridHuntGame:
     """A flexible Pacman-style grid environment with support for configurable opponents and larger scales."""
@@ -9,6 +9,7 @@ class VisualGridHuntGame:
     def __init__(self, width=10, height=10, num_food=10, num_opponents=2, num_traps=3, custom_walls=None):
         self.width = width
         self.height = height
+        self.direction = "Right"
         self.agent_pos = [0, 0]  # Starting position (x, y)
 
         if custom_walls is not None:
@@ -55,20 +56,61 @@ class VisualGridHuntGame:
         self.steps = 0
         self.collision = False
 
-    def get_percept(self) -> dict:
+    def get_percept(self):
+
+        x, y = self.agent_pos
+
+        dx = 0
+        dy = 0
+
+        if self.direction == "Right":
+            dx = 1
+        elif self.direction == "Left":
+            dx = -1
+        elif self.direction == "Up":
+            dy = 1
+        elif self.direction == "Down":
+            dy = -1
+
+        next_cell = (x + dx, y + dy)
+
+        wall = (
+            next_cell[0] < 0 or
+            next_cell[0] >= self.width or
+            next_cell[1] < 0 or
+            next_cell[1] >= self.height or
+            next_cell in self.walls
+        )
+
         return {
-            'agent_pos': list(self.agent_pos),
-            'opponent_positions': [list(op) for op in self.opponents],
-            'smells_food': tuple(self.agent_pos) in self.food_positions,
-            'smells_toxin': tuple(self.agent_pos) in self.toxic_traps,
-            'hit_wall': tuple(self.agent_pos) in self.walls,
-            'collision': self.collision,
-            'score': self.score,
-            'remaining_food': len(self.food_positions)
+           "wall_ahead": wall,
+           "food_here": (x, y) in self.food_positions,
+           "grid_size": (self.width, self.height),
+           "walls": list(self.walls),
+           "all_food": list(self.food_positions),
+           "agent_pos": tuple(self.agent_pos)
+            
         }
 
     def execute_action(self, action: str):
         self.steps += 1
+
+        # Update current facing direction
+        if action == "Up":
+            self.direction = "Up"
+        elif action == "Down":
+            self.direction = "Down"
+        elif action == "Left":
+            self.direction = "Left"
+        elif action == "Right":
+            self.direction = "Right"
+
+        if action == "Suck":
+            if tuple(self.agent_pos) in self.food_positions:
+                self.food_positions.remove(tuple(self.agent_pos))
+                self.score += 20
+            return
+
         new_pos = list(self.agent_pos)
 
         if action == 'Up':
@@ -136,8 +178,11 @@ class GridGameGUI:
                              fg="white")
         self.btn.pack(pady=5)
 
+        self.agent = SearchAgent()
+        self.agent.active_algo = "BFS"
+        
         self.draw_grid()
-
+        
     def draw_grid(self):
         self.canvas.delete("all")
 
@@ -205,7 +250,8 @@ class GridGameGUI:
 
         def step():
             if not self.env.is_done():
-                action = random.choice(['Up', 'Down', 'Left', 'Right'])
+                percept = self.env.get_percept()
+                action = self.agent.sense_and_act(percept)
                 self.env.execute_action(action)
 
                 self.draw_grid()
